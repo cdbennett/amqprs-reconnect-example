@@ -1,3 +1,11 @@
+//! # amqprs robust connection management example
+//!
+//! Pass the RabbitMQ connection parameters in environment variables like this:
+//!
+//!     RUST_LOG=trace RABBIT_USER=guest RABBIT_PASSWORD=guest RABBIT_HOST=localhost RABBIT_VHOST="/" cargo run
+//!
+//! The variables have sensible defaults, so you can omit some of them, depending on your server's setup.
+
 use std::{env, sync::Arc};
 
 use amqprs::{
@@ -12,8 +20,12 @@ use amqprs::{
 };
 use anyhow::Context;
 use async_trait::async_trait;
+use tokio::time::{sleep, Duration};
 use tracing::{debug, error, info, trace, warn};
 
+/// Main program entry point. Use a structure that reflects real-world programs,
+/// e.g. multiple concurrent tasks, sharing some global state. Support for graceful
+/// shutdown, and for reconnecting when connection to a server is lost.
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
@@ -33,10 +45,10 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Load the application configuration.
+/// Uses environment variable, but in reality it might use some other external configuration source.
 async fn load_config() -> Config {
-    // In reality this might be loaded from some other external source.
-    // Sleep to simulate loading configuration.
-    tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+    sleep(Duration::from_millis(10)).await; // delay to simulate loading configuration
     Config {
         virtual_host: env::var("RABBIT_VHOST").unwrap_or("/".to_owned()),
         host: env::var("RABBIT_HOST").unwrap_or("localhost".to_owned()),
@@ -61,6 +73,7 @@ async fn shutdown_monitor(cfg: Arc<Config>) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Application configuration data.
 pub struct Config {
     pub virtual_host: String,
     pub host: String,
@@ -69,11 +82,11 @@ pub struct Config {
     pub username: String,
 }
 
-/// This function starts the RabbitMQ client, and if it fails, it will attempt
-/// to reconnect.
+/// This function is the long-running RabbitMQ task.
+/// It starts the RabbitMQ client, and if it fails, it will attempt to reconnect.
 pub async fn rabbit_manager(cfg: Arc<Config>) -> anyhow::Result<()> {
     loop {
-        let result = rabbit_task(cfg.clone()).await;
+        let result = rabbit_connection_process(cfg.clone()).await;
         match result {
             Ok(value) => {
                 // Not actually implemented right now.
@@ -81,8 +94,8 @@ pub async fn rabbit_manager(cfg: Arc<Config>) -> anyhow::Result<()> {
                 return Ok(value);
             }
             Err(err) => {
-                error!("RabbitMQ task returned error: {err:?}");
-                tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+                error!("RabbitMQ connection returned error: {err:?}");
+                sleep(Duration::from_millis(1000)).await;
                 info!("ready to restart RabbitMQ task");
             }
         }
@@ -90,7 +103,7 @@ pub async fn rabbit_manager(cfg: Arc<Config>) -> anyhow::Result<()> {
 }
 
 /// RabbitMQ client task. Returns an error result if the connection is lost.
-async fn rabbit_task(cfg: Arc<Config>) -> anyhow::Result<()> {
+async fn rabbit_connection_process(cfg: Arc<Config>) -> anyhow::Result<()> {
     debug!("starting RabbitMQ task");
 
     let connection = Connection::open(
@@ -146,7 +159,7 @@ async fn rabbit_task(cfg: Arc<Config>) -> anyhow::Result<()> {
     // Wait forever ... TODO: somehow we would like to have a signal
     // to terminate this task if the RabbitMQ connection is lost.
     loop {
-        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+        sleep(Duration::from_secs(60)).await;
     }
 }
 
