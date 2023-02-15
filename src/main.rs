@@ -61,17 +61,32 @@ async fn load_config() -> Config {
     }
 }
 
-async fn shutdown_monitor(cfg: Arc<Config>) -> anyhow::Result<()> {
+async fn shutdown_monitor(cfg: Arc<Config>) -> anyhow::Result<String> {
     // Show how tasks can share access to application config, though obviously we don't need config here right now.
     info!(
-        "waiting for Ctrl+c.  I have access to the configuration. Rabbit host: {}",
+        "waiting for Ctrl+C.  I have access to the configuration. Rabbit host: {}",
         cfg.host
     );
     tokio::signal::ctrl_c()
         .await
-        .context("problem waiting for ctrl+c")?;
-    info!("received Ctrl+c signal");
-    Ok(())
+        .context("problem waiting for Ctrl+C")?;
+    info!("Received Ctrl+C signal");
+
+    // Spawn a task that will immediately abort if a second Ctrl+C is received while shutting down.
+    tokio::task::spawn(async {
+        match tokio::signal::ctrl_c().await {
+            Ok(()) => {
+                warn!("Aren't you in a hurry?!");
+            }
+            Err(err) => {
+                error!("problem waiting for Ctrl+C 2nd time: {err:?}");
+            }
+        };
+        warn!("aborting process due to 2nd Ctrl+C");
+        std::process::abort();
+    });
+
+    Ok("Ctrl+C".to_owned())
 }
 
 /// Application configuration data.
@@ -85,8 +100,8 @@ pub struct Config {
 
 #[derive(Error, Debug)]
 pub enum RabbitError {
-    #[error("RabbitMQ server connection lost")]
-    ConnectionLost,
+    #[error("RabbitMQ server connection lost: {0}")]
+    ConnectionLost(String),
 }
 
 /// This function is the long-running RabbitMQ task.
@@ -163,14 +178,11 @@ async fn rabbit_connection_process(cfg: Arc<Config>) -> anyhow::Result<()> {
         .context("failed basic_consume")?;
     trace!("consumer tag: {consumer_tag}");
 
-    connection
-        .wait_on_network_io_failure(async {
-            error!("RabbitMQ network I/O failure");
-        })
-        .await
-        .context("failed to wait for RabbitMQ network IO failure")?;
-    warn!("terminating RabbitMQ connection process due to connection loss");
-    Err(RabbitError::ConnectionLost.into())
+    if connection.listen_network_io_failure().await {
+        Err(RabbitError::ConnectionLost("connection failure".to_owned()).into())
+    } else {
+        Err(RabbitError::ConnectionLost("connection shut down normally. Since we don't close it ourselves, this shouldn't happen in this program".to_owned()).into())
+    }
 }
 
 pub struct MyConsumer {
