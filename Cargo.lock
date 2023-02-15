@@ -14,9 +14,8 @@ dependencies = [
 
 [[package]]
 name = "amqprs"
-version = "1.0.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed3c6ae8da1d5e4e433ec90d4df6dea6dd2e13b5a3fcc47b3fb5fe32b397e6d6"
+version = "1.0.9"
+source = "git+https://github.com/gftea/amqprs.git?tag=v1.1.0-rc.1#893b11037a646f98cab3773f01c92e867fd39446"
 dependencies = [
  "amqp_serde",
  "async-trait",
@@ -33,6 +32,7 @@ dependencies = [
  "amqprs",
  "anyhow",
  "async-trait",
+ "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -273,6 +273,26 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "thiserror"
+version = "1.0.38"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a9cd18aa97d5c45c6603caea1da6628790b37f7a34b6ca89522331c5180fed0"
+dependencies = [
+ "thiserror-impl",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "1.0.38"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fb327af4685e4d03fa8cbcf1716380da910eeb2bb8be417e7f9fd3fb164f36f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

@@ -7,6 +7,7 @@
 //! The variables have sensible defaults, so you can omit some of them, depending on your server's setup.
 
 use std::{env, sync::Arc};
+use thiserror::Error;
 
 use amqprs::{
     callbacks::{DefaultChannelCallback, DefaultConnectionCallback},
@@ -80,6 +81,12 @@ pub struct Config {
     pub password: String,
     pub port: u16,
     pub username: String,
+}
+
+#[derive(Error, Debug)]
+pub enum RabbitError {
+    #[error("RabbitMQ server connection lost")]
+    ConnectionLost,
 }
 
 /// This function is the long-running RabbitMQ task.
@@ -156,11 +163,14 @@ async fn rabbit_connection_process(cfg: Arc<Config>) -> anyhow::Result<()> {
         .context("failed basic_consume")?;
     trace!("consumer tag: {consumer_tag}");
 
-    // Wait forever ... TODO: somehow we would like to have a signal
-    // to terminate this task if the RabbitMQ connection is lost.
-    loop {
-        sleep(Duration::from_secs(60)).await;
-    }
+    connection
+        .wait_on_network_io_failure(async {
+            error!("RabbitMQ network I/O failure");
+        })
+        .await
+        .context("failed to wait for RabbitMQ network IO failure")?;
+    warn!("terminating RabbitMQ connection process due to connection loss");
+    Err(RabbitError::ConnectionLost.into())
 }
 
 pub struct MyConsumer {
