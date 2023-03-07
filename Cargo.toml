@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-amqprs = { git = "https://github.com/gftea/amqprs.git", tag = "v1.1.0-rc.2", features = ["traces", "tracing"] }
+# amqprs = { git = "https://github.com/gftea/amqprs.git", tag = "v1.1.0-rc.2", features = ["traces", "tracing"] }
+amqprs = { version="1", features = ["traces", "tracing"] }
 anyhow = "1.0.69"
 async-trait = "0.1.64"
 thiserror = "1.0.38"
