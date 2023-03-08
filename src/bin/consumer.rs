@@ -201,7 +201,7 @@ impl MyConsumer {
     pub fn new(no_ack: bool) -> Self {
         Self {
             no_ack,
-            panic_countdown: 3,
+            panic_countdown: 2,
         }
     }
 }
@@ -224,7 +224,7 @@ impl AsyncConsumer for MyConsumer {
 
         match self.panic_countdown {
             0 => {
-                self.panic_countdown = 3;
+                self.panic_countdown = 2;
                 info!("panic time!");
                 panic!("testing consumer handling of panics");
             }
