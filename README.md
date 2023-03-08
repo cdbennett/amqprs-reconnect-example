@@ -11,3 +11,11 @@ manually restarted.
 
 This is an attempt to demonstrate how to implement production-grade
 applications with amqp-rs by implementing robust connection management.
+
+## Running the example
+
+### Start RabbitMQ server
+
+Using a Docker container for simplicity and isolation.
+
+    docker run -d --name 

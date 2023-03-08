@@ -187,6 +187,7 @@ async fn rabbit_connection_process(cfg: Arc<Config>) -> anyhow::Result<()> {
 
 pub struct MyConsumer {
     no_ack: bool,
+    panic_countdown: u32,
 }
 
 impl MyConsumer {
@@ -198,7 +199,10 @@ impl MyConsumer {
     ///
     /// no_ack = [`false`] means manual ack, and should send ACK message to server.
     pub fn new(no_ack: bool) -> Self {
-        Self { no_ack }
+        Self {
+            no_ack,
+            panic_countdown: 3,
+        }
     }
 }
 
@@ -217,6 +221,18 @@ impl AsyncConsumer for MyConsumer {
             channel,
             content.len()
         );
+
+        match self.panic_countdown {
+            0 => {
+                self.panic_countdown = 3;
+                info!("panic time!");
+                panic!("testing consumer handling of panics");
+            }
+            i => {
+                info!("panic countdown: {i}");
+                self.panic_countdown -= 1;
+            }
+        };
 
         // Ack explicitly if using manual ack mode. Otherwise, the library auto-acks it.
         if !self.no_ack {
